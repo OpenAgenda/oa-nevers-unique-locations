@@ -1,0 +1,12 @@
+{
+  "name": "oa-nevers-sync-local",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
