@@ -10,8 +10,9 @@ process.env.APP_CONFIG = JSON.stringify({
   oa: {
     secret: config.secretKey
   },
+  uniqueLocationIdPrefix: "nevers-",
   targetAgendas: [
-    { "slug": "agenda-de-test-lieux-uniques", "uid": "5316770", "title": "Agenda de test lieux uniques" }
+    { "slug": "agenda-de-test-lieux-uniques", "uid": 5316770, "title": "Agenda de test lieux uniques" }
   ]
 });
 
