@@ -136,6 +136,8 @@ async function generateUniqueLocationId(database) {
               "uniquelocationid": "test"
             }
           });
+
+          //locations.update({ '_id': matchingDocumentGeo._id }, { $set: { uniquelocationid: event.custom.uniquelocationid }, $push: { linkedEvents: { eventUid: event.uid, agendaUid: agenda.uid, hasUniqueLocationId: true } } });
         }
       }
     }
