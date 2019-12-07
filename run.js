@@ -11,27 +11,22 @@ const config = Object.assign({
 
 // npm imports
 const _ = require('lodash');
-const sa = require('superagent');
 var Datastore = require('nedb');
 
 // local imports
 const SDK = require('./lib/SDK');
 const listOAEvents = require('./lib/listOAEvents');
-const getAllDocuments = require('./lib/getAllDocuments');
+const getDocuments = require('./lib/getDocuments');
+const generateUniqueLocationId = require('./lib/generateUniqueLocationId').bind(null, config.localIndex);
 const locationIsSame = require('./lib/locationIsSame').bind(null, config.locationCompare);
 
 // Local database configuration
-const locations = new Datastore({ filename: 'locations.db', autoload: true });
+const locations = new Datastore({ filename: config.localIndex.filename, autoload: true });
 
 function documentIsLinkedToEvent(document, eventUid, agendaUid) {
   return document.linkedEvents.filter(linkedEvent =>
     linkedEvent.eventUid == eventUid && linkedEvent.agendaUid == agendaUid
   ).length > 0
-}
-
-async function generateUniqueLocationId(database) {
-  const documents = await getAllDocuments(database);
-  return `${config.uniquelocationidPrefix}${documents.length + 1}`
 }
 
 (async () => {
@@ -41,9 +36,6 @@ async function generateUniqueLocationId(database) {
     // Api client
     const client = await SDK(_.pick(config.oa, ['secret']));
 
-    // Get all documents from the local database
-    let documents = await getAllDocuments(locations);
-
     console.log("Phase 1: Iterate over all agendas and events");
 
     // Loop over all agendas target agendas
@@ -52,19 +44,23 @@ async function generateUniqueLocationId(database) {
       // For each agenda loop over all public events
       for (const event of await listOAEvents(agenda.uid)) {
 
+        // The reason why we get documents at each loop iteration is because each event can potentially
+        // update the local index and we need the latest version at every time
+        const documents = await getDocuments(locations);
+
+        // Matching document using the levenstein and geocoordinates
         const matchingDocumentGeo = _.first(documents.filter(document => locationIsSame(
           { name: document.name, latitude: document.latitude, longitude: document.longitude },
           { name: event.location.name, latitude: event.location.latitude, longitude: event.location.longitude }
         )));
 
+        // Matching document using the uniquelocation
         const matchingDocumentUniquelocationid = _.first(documents.filter(document =>
           document.uniquelocationid == event.custom.uniquelocationid
         ));
 
         // Case 1
         if (!event.custom.uniquelocationid && !matchingDocumentGeo) {
-          console.log("no uniquelocationid and no matching doc")
-          console.log("inserting location in local DB")
           locations.insert({
             uniquelocationid: null,
             name: event.location.name,
@@ -81,8 +77,6 @@ async function generateUniqueLocationId(database) {
 
         // Case 2
         if (!event.custom.uniquelocationid && matchingDocumentGeo) {
-          console.log("event has no uniquelocationid")
-          console.log("matched doc geo")
           if (!documentIsLinkedToEvent(matchingDocumentGeo, event.uid, agenda.uid))
             locations.update({ '_id': matchingDocumentGeo._id }, { $push: { linkedEvents: { eventUid: event.uid, agendaUid: agenda.uid, hasUniqueLocationId: false } } });
           continue;
@@ -90,7 +84,6 @@ async function generateUniqueLocationId(database) {
 
         // Case 3
         if (event.custom.uniquelocationid && matchingDocumentUniquelocationid) {
-          console.log("matched doc by ID")
           if (!documentIsLinkedToEvent(matchingDocumentUniquelocationid, event.uid, agenda.uid))
             locations.update({ '_id': matchingDocumentUniquelocationid._id }, { $push: { linkedEvents: { eventUid: event.uid, agendaUid: agenda.uid, hasUniqueLocationId: true } } });
           continue;
@@ -98,10 +91,9 @@ async function generateUniqueLocationId(database) {
 
         // Case 4
         if (event.custom.uniquelocationid && matchingDocumentGeo) {
-          console.log("event has uniquelocationid")
-          console.log("matched doc geo")
           if (!documentIsLinkedToEvent(matchingDocumentGeo, event.uid, agenda.uid))
             locations.update({ '_id': matchingDocumentGeo._id }, { $set: { uniquelocationid: event.custom.uniquelocationid }, $push: { linkedEvents: { eventUid: event.uid, agendaUid: agenda.uid, hasUniqueLocationId: true } } });
+          continue;
         }
 
         // Case 5
@@ -122,29 +114,32 @@ async function generateUniqueLocationId(database) {
       }
     }
 
-    console.log("Phase 2: Iterate over our local index and create unique ids");
+    console.log("Phase 2: Iterate over our local index and generate unique ids");
+    for (const document of await getDocuments(locations, { uniquelocationid: null })) {
+      const newid = await generateUniqueLocationId(locations);
+      console.log('generated', newid)
+      locations.update({ '_id': document._id }, { $set: { uniquelocationid: newid } });
+    }
 
-    documents = await getAllDocuments(locations);
-
-    console.log(JSON.stringify(documents, null, 2));
-
-    for (const document of documents) {
+    console.log("Phase 3: Update events that have to be updated on the server");
+    for (const document of await getDocuments(locations)) {
       for (const linkedEvent of document.linkedEvents) {
         if (!linkedEvent.hasUniqueLocationId) {
+
+          // PATCH the event uniquelocationid field on the server
           const res = await client.v2('patch', `/agendas/${linkedEvent.agendaUid}/events/${linkedEvent.eventUid}`, {
             data: {
-              "uniquelocationid": "test"
+              "uniquelocationid": document.uniquelocationid
             }
           });
 
-          //locations.update({ '_id': matchingDocumentGeo._id }, { $set: { uniquelocationid: event.custom.uniquelocationid }, $push: { linkedEvents: { eventUid: event.uid, agendaUid: agenda.uid, hasUniqueLocationId: true } } });
+          // Update the local entry, mark it as hasUniqueLocationId: true
+          linkedEvent.hasUniqueLocationId = true
+          locations.update({ '_id': document._id }, { $set: { linkedEvents: document.linkedEvents } });
         }
       }
     }
 
-
-
-    console.log("Phase 3: Generate report of operations");
 
   } catch (e) {
     console.log('something went wrong');
