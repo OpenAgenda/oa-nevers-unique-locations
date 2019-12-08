@@ -19,6 +19,7 @@ const listOAEvents = require('./lib/listOAEvents');
 const getDocuments = require('./lib/getDocuments');
 const generateUniquelocationid = require('./lib/generateUniquelocationid').bind(null, config.localIndex);
 const locationIsSame = require('./lib/locationIsSame').bind(null, config.locationCompare);
+const writeCSVFile = require('./lib/writeCSVFile');
 
 // Local database configuration
 const locations = new Datastore({ filename: config.localIndex.filename, autoload: true });
@@ -29,13 +30,19 @@ function documentIsLinkedToEvent(document, eventUid, agendaUid) {
   ).length > 0
 }
 
+function _filename(dir) {
+  const now = new Date();
+  const _fZ = n => (n < 10 ? '0' : '') + n;
+  return `${dir}oa-nevers-unique-locations-${now.getFullYear()}-${_fZ(now.getMonth() + 1)}-${_fZ(now.getDate())}T${_fZ(now.getHours())}:${_fZ(now.getMinutes())}.csv`;
+}
+
 (async () => {
 
   try {
 
     // Api client
     const client = await SDK(_.pick(config.oa, ['secret']));
-    console.log("\n")
+    console.log("\n");
     console.log("Phase 1: Iterate over all agendas and events");
 
     // Loop over all agendas target agendas
@@ -44,7 +51,7 @@ function documentIsLinkedToEvent(document, eventUid, agendaUid) {
       // For each agenda loop over all public events
       for (const event of await listOAEvents(agenda.uid)) {
 
-        console.log("\n")
+        console.log("\n");
         console.log("Processing event", event.slug);
         console.log("uniquelocationid:", event.custom.uniquelocationid)
 
@@ -141,7 +148,7 @@ function documentIsLinkedToEvent(document, eventUid, agendaUid) {
       }
     }
 
-    console.log("\n")
+    console.log("\n");
     console.log("Phase 2: Iterate over our local index and generate unique ids");
     for (const document of await getDocuments(locations, { uniquelocationid: null })) {
       const newid = await generateUniquelocationid(locations);
@@ -149,7 +156,7 @@ function documentIsLinkedToEvent(document, eventUid, agendaUid) {
       locations.update({ '_id': document._id }, { $set: { uniquelocationid: newid } });
     }
 
-    console.log("\n")
+    console.log("\n");
     console.log("Phase 3: Update events that have been marked as hasUniquelocationid:false");
     for (const document of await getDocuments(locations)) {
       for (const linkedEvent of document.linkedEvents) {
@@ -170,7 +177,7 @@ function documentIsLinkedToEvent(document, eventUid, agendaUid) {
             // Maybe making a new reference with a copy of the whole linkedEvents variable has less risks of reference issues?
             linkedEvent.hasUniquelocationid = true
 
-            console.log("Updating local index entry as hasUniquelocationid:true");
+            console.log("Updating local index entry to hasUniquelocationid:true");
             locations.update({ '_id': document._id }, { $set: { linkedEvents: document.linkedEvents } });
           }
           catch (e) {
@@ -180,6 +187,21 @@ function documentIsLinkedToEvent(document, eventUid, agendaUid) {
         }
       }
     }
+
+
+    console.log("\n");
+    console.log("Phase 4: Export the local index into a CSV file");
+
+    const rows = [];
+    for (const document of await getDocuments(locations)) {
+      rows.push({
+        'name': document.name,
+        'latitude': document.latitude,
+        'longitude': document.longitude,
+        'linkedEvents': document.linkedEvents.map(linkedEvent => `${linkedEvent.agendaUid}/${linkedEvent.eventUid}`).join(',')
+      })
+    }
+    writeCSVFile(_filename('./'), rows);
 
 
   } catch (e) {

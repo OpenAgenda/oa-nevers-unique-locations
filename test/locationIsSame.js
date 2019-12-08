@@ -1,5 +1,7 @@
 'use strict';
 
+const should = require('should');
+
 const locationIsSame = require('../lib/locationIsSame');
 
 describe('locationIsSame', () => {
