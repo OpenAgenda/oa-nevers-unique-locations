@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "node dev"
+    "dev": "node dev",
+    "test": "mocha"
   },
   "keywords": [],
   "author": "",
@@ -15,5 +16,8 @@
     "lodash": "^4.17.15",
     "nedb": "^1.8.0",
     "superagent": "^5.1.2"
+  },
+  "devDependencies": {
+    "mocha": "^6.2.2"
   }
 }
