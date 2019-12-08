@@ -149,7 +149,7 @@ function _filename(dir) {
     }
 
     console.log("\n");
-    console.log("Phase 2: Iterate over our local index and generate unique ids");
+    console.log("Phase 2: Iterate over the local index and generate unique ids");
     for (const document of await getDocuments(locations, { uniquelocationid: null })) {
       const newid = await generateUniquelocationid(locations);
       console.log('Generated uniquelocationid:', newid)
@@ -201,8 +201,11 @@ function _filename(dir) {
         'linkedEvents': document.linkedEvents.map(linkedEvent => `${linkedEvent.agendaUid}/${linkedEvent.eventUid}`).join(',')
       })
     }
-    writeCSVFile(_filename('./'), rows);
 
+    const writtenFilepath = await writeCSVFile(_filename('./'), rows);
+    console.log("Created CSV file at:", writtenFilepath);
+
+    process.exit();
 
   } catch (e) {
     console.log("something went wrong");
