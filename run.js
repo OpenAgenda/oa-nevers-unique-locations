@@ -11,21 +11,19 @@ const config = Object.assign({
 
 // npm imports
 const _ = require('lodash');
-var Datastore = require('nedb');
 
 // local imports
 const SDK = require('./lib/SDK');
 const listOAEvents = require('./lib/listOAEvents');
-const getDocuments = require('./lib/getDocuments');
 const generateUniquelocationid = require('./lib/generateUniquelocationid').bind(null, config.localIndex);
 const locationIsSame = require('./lib/locationIsSame').bind(null, config.locationCompare);
 const writeCSVFile = require('./lib/writeCSVFile');
 
 // Local database configuration
-const locations = new Datastore({ filename: config.localIndex.filename, autoload: true });
+// const locations = new Datastore({ filename: config.localIndex.filename, autoload: true });
 
-function documentIsLinkedToEvent(document, eventUid, agendaUid) {
-  return document.linkedEvents.filter(linkedEvent =>
+function locationIsLinkedToEvent(location, eventUid, agendaUid) {
+  return location.linkedEvents.filter(linkedEvent =>
     linkedEvent.eventUid == eventUid && linkedEvent.agendaUid == agendaUid
   ).length > 0
 }
@@ -45,6 +43,8 @@ function _filename(dir) {
     console.log("\n");
     console.log("Phase 1: Iterate over all agendas and events");
 
+    const locations = [];
+
     // Loop over all agendas target agendas
     for (const agenda of config.targetAgendas) {
 
@@ -55,13 +55,9 @@ function _filename(dir) {
         console.log("Processing event", event.slug);
         console.log("uniquelocationid:", event.custom.uniquelocationid)
 
-        // The reason why we get documents at each loop iteration is because each event can potentially
-        // modify the local index and we need the latest version at every time
-        const documents = await getDocuments(locations);
-
-        // Matching document using the levenstein and geocoordinates
-        const matchingDocumentLevensteinGeo = _.first(documents.filter(document => locationIsSame(
-          { name: document.name, latitude: document.latitude, longitude: document.longitude },
+        // Matching location using the levenstein and geocoordinates
+        const matchingLocationLevensteinGeo = _.first(locations.filter(location => locationIsSame(
+          { name: location.name, latitude: location.latitude, longitude: location.longitude },
           { name: event.location.name, latitude: event.location.latitude, longitude: event.location.longitude }
         )));
 
@@ -69,11 +65,11 @@ function _filename(dir) {
 
           console.log("Event has no uniquelocationid");
 
-          if (!matchingDocumentLevensteinGeo) {
-            console.log("No matching document using the levenstein+geo method");
+          if (!matchingLocationLevensteinGeo) {
+            console.log("No matching location using the levenstein+geo method");
             console.log("Creating a new entry in the local index for the location");
             console.log("Adding the event to the linkedEvents, and mark it as hasuniquelocation:false");
-            locations.insert({
+            locations.push({
               uniquelocationid: null,
               name: event.location.name,
               latitude: event.location.latitude,
@@ -81,17 +77,23 @@ function _filename(dir) {
               linkedEvents: [{
                 eventUid: event.uid,
                 agendaUid: agenda.uid,
-                hasUniquelocationid: false
+                hasUniquelocationid: false,
+                patched: false
               }]
             });
             continue;
           }
 
-          if (matchingDocumentLevensteinGeo) {
+          if (matchingLocationLevensteinGeo) {
             console.log("Found a match in the local index using the levenstein+geo method");
-            if (!documentIsLinkedToEvent(matchingDocumentLevensteinGeo, event.uid, agenda.uid)) {
+            if (!locationIsLinkedToEvent(matchingLocationLevensteinGeo, event.uid, agenda.uid)) {
               console.log("Adding the event to the linkedEvents, and mark it as hasuniquelocation:false");
-              locations.update({ '_id': matchingDocumentLevensteinGeo._id }, { $push: { linkedEvents: { eventUid: event.uid, agendaUid: agenda.uid, hasUniquelocationid: false } } });
+              matchingLocationLevensteinGeo.linkedEvents.push({
+                eventUid: event.uid,
+                agendaUid: agenda.uid,
+                hasUniquelocationid: false,
+                patched: false
+              })
             }
             continue;
           }
@@ -101,38 +103,46 @@ function _filename(dir) {
 
           console.log("Event already has a uniquelocationid:", event.custom.uniquelocationid);
 
-          // Matching document using the uniquelocationid
-          const matchingDocumentUniquelocationid = _.first(documents.filter(document =>
-            document.uniquelocationid == event.custom.uniquelocationid
+          // Matching location using the uniquelocationid
+          const matchingLocationUniquelocationid = _.first(locations.filter(location =>
+            location.uniquelocationid == event.custom.uniquelocationid
           ));
 
-          if (matchingDocumentUniquelocationid) {
+          if (matchingLocationUniquelocationid) {
             console.log("Found a match in the local index with the same uniquelocationid");
-            if (!documentIsLinkedToEvent(matchingDocumentUniquelocationid, event.uid, agenda.uid)) {
+            if (!locationIsLinkedToEvent(matchingLocationUniquelocationid, event.uid, agenda.uid)) {
               console.log("Adding the event to the linkedEvents");
-              locations.update({ '_id': matchingDocumentUniquelocationid._id }, { $push: { linkedEvents: { eventUid: event.uid, agendaUid: agenda.uid, hasUniquelocationid: true } } });
+              matchingLocationUniquelocationid.linkedEvents.push({
+                eventUid: event.uid,
+                agendaUid: agenda.uid,
+                hasUniquelocationid: true,
+                patched: false
+              });
             }
             continue;
           }
 
-          if (matchingDocumentLevensteinGeo) {
+          if (matchingLocationLevensteinGeo) {
             console.log("Found a match in the local index using the levenstein+geo method");
-            if (!documentIsLinkedToEvent(matchingDocumentLevensteinGeo, event.uid, agenda.uid)) {
+            if (!locationIsLinkedToEvent(matchingLocationLevensteinGeo, event.uid, agenda.uid)) {
               console.log("Updating the uniquelocationid of the matched location to:", event.custom.uniquelocationid)
               console.log("Adding the event to the linkedEvents");
-              locations.update({ '_id': matchingDocumentLevensteinGeo._id }, { $set: { uniquelocationid: event.custom.uniquelocationid }, $push: { linkedEvents: { eventUid: event.uid, agendaUid: agenda.uid, hasUniquelocationid: true } } });
+              matchingLocationLevensteinGeo.uniquelocationid = event.custom.uniquelocationid;
+              matchingLocationUniquelocationid.linkedEvents.push({
+                eventUid: event.uid,
+                agendaUid: agenda.uid,
+                hasUniquelocationid: true,
+                patched: false
+              });
             }
             continue;
           }
 
-          // @QUESTION: since both cases (matchingDocumentUniquelocationid or matchingDocumentLevensteinGeo) are handled above
-          // and since they have `continue`, we could remove the if statement of the following block and leave just
-          // what's inside the curly brackets. But I decided to leave it for readability. What do you think is best?
-          if (!matchingDocumentLevensteinGeo && !matchingDocumentUniquelocationid) {
+          if (!matchingLocationLevensteinGeo && !matchingLocationUniquelocationid) {
             console.log("No match in the local index with the same uniquelocationid, and no match using the levenstein+geo method");
             console.log("Creating a new entry in the local index for the location");
             console.log("Adding the event to the linkedEvents, and mark it as hasuniquelocation:true");
-            locations.insert({
+            locations.push({
               uniquelocationid: event.custom.uniquelocationid,
               name: event.location.name,
               latitude: event.location.latitude,
@@ -140,9 +150,10 @@ function _filename(dir) {
               linkedEvents: [{
                 eventUid: event.uid,
                 agendaUid: agenda.uid,
-                hasUniquelocationid: true
+                hasUniquelocationid: true,
+                patched: false
               }]
-            });
+            })
           }
         }
       }
@@ -150,16 +161,16 @@ function _filename(dir) {
 
     console.log("\n");
     console.log("Phase 2: Iterate over the local index and generate unique ids");
-    for (const document of await getDocuments(locations, { uniquelocationid: null })) {
+    for (const location of locations.filter(location => location.uniquelocationid == null)) {
       const newid = await generateUniquelocationid(locations);
       console.log('Generated uniquelocationid:', newid)
-      locations.update({ '_id': document._id }, { $set: { uniquelocationid: newid } });
+      location.uniquelocationid = newid;
     }
 
     console.log("\n");
     console.log("Phase 3: Update events that have been marked as hasUniquelocationid:false");
-    for (const document of await getDocuments(locations)) {
-      for (const linkedEvent of document.linkedEvents) {
+    for (const location of locations) {
+      for (const linkedEvent of location.linkedEvents) {
         if (!linkedEvent.hasUniquelocationid) {
 
           try {
@@ -167,18 +178,15 @@ function _filename(dir) {
             // PATCH the event uniquelocationid field on the server
             const res = await client.v2('patch', `/agendas/${linkedEvent.agendaUid}/events/${linkedEvent.eventUid}`, {
               data: {
-                "uniquelocationid": document.uniquelocationid
+                "uniquelocationid": location.uniquelocationid
               }
             });
 
-            // Update the local entry, mark it as hasUniquelocationid:true
-            // @QUESTION: do you think this is a good way of updating an item in the array of linked events?
-            // doing `linkedEvent.hasUniquelocationid = true` works but i'm actually surprised it does.
-            // Maybe making a new reference with a copy of the whole linkedEvents variable has less risks of reference issues?
-            linkedEvent.hasUniquelocationid = true
-
-            console.log("Updating local index entry to hasUniquelocationid:true");
-            locations.update({ '_id': document._id }, { $set: { linkedEvents: document.linkedEvents } });
+            if (res.statusCode == 200) {
+              console.log("Updating local index entry to hasUniquelocationid:true");
+              linkedEvent.hasUniquelocationid = true;
+              linkedEvent.patched = true;
+            }
           }
           catch (e) {
             console.log("Failed patching the event");
@@ -188,18 +196,19 @@ function _filename(dir) {
       }
     }
 
-
     console.log("\n");
     console.log("Phase 4: Export the local index into a CSV file");
 
     const rows = [];
-    for (const document of await getDocuments(locations)) {
+    for (const location of locations) {
       rows.push({
-        'name': document.name,
-        'latitude': document.latitude,
-        'longitude': document.longitude,
-        'linkedEvents': document.linkedEvents.map(linkedEvent => `${linkedEvent.agendaUid}/${linkedEvent.eventUid}`).join(',')
-      })
+        'uniquelocationid': location.uniquelocationid,
+        'name': location.name,
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+        'linkedEvents': location.linkedEvents.map(linkedEvent => linkedEvent.eventUid).join(','),
+        'patchedEvents': location.linkedEvents.filter(linkedEvent => linkedEvent.patched == true).map(linkedEvent => linkedEvent.eventUid).join(',')
+      });
     }
 
     const writtenFilepath = await writeCSVFile(_filename('./'), rows);
