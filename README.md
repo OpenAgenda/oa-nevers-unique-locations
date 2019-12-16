@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-
-=======
->>>>>>> a6ab668b5bfbe9eca2d010f8b252864826b36ba1
 # Script de génération d'identifiants uniques de lieux
 
 Script qui agit sur un ensemble prédéfini d'agendas pour générer des identifiants uniques de lieux. Ces identifiants sont sauvegardés sur un champ additionel prévu à cet effet sur chaque agenda.
