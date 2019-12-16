@@ -15,7 +15,7 @@ const _ = require('lodash');
 // local imports
 const SDK = require('./lib/SDK');
 const listOAEvents = require('./lib/listOAEvents');
-const generateUniquelocationid = require('./lib/generateUniquelocationid').bind(null, config.localIndex);
+const generateUniqueLocationId = require('./lib/generateUniqueLocationId').bind(null, config.idPrefix);
 const locationIsSame = require('./lib/locationIsSame').bind(null, config.locationCompare);
 const writeCSVFile = require('./lib/writeCSVFile');
 
@@ -63,12 +63,16 @@ function _filename(dir) {
 
         if (!event.custom.uniquelocationid) {
 
-          console.log("Event has no uniquelocationid");
+          console.log('Event has no uniquelocationid');
 
           if (!matchingLocationLevensteinGeo) {
-            console.log("No matching location using the levenstein+geo method");
-            console.log("Creating a new entry in the local index for the location");
-            console.log("Adding the event to the linkedEvents, and mark it as hasuniquelocation:false");
+            console.log(
+              '1.1: %s, %s, %s',
+              'No matching location using the levenstein+geo method',
+              'No matching location using the levenstein+geo method',
+              'Creating a new entry in the local index for the location',
+              'Adding the event to the linkedEvents, and mark it as hasuniquelocation:false'
+            );
             locations.push({
               uniquelocationid: null,
               name: event.location.name,
@@ -85,7 +89,10 @@ function _filename(dir) {
           }
 
           if (matchingLocationLevensteinGeo) {
-            console.log("Found a match in the local index using the levenstein+geo method");
+            console.log(
+              '1.2: %s',
+              'Found a match in the local index using the levenstein+geo method'
+            );
             if (!locationIsLinkedToEvent(matchingLocationLevensteinGeo, event.uid, agenda.uid)) {
               console.log("Adding the event to the linkedEvents, and mark it as hasuniquelocation:false");
               matchingLocationLevensteinGeo.linkedEvents.push({
@@ -101,17 +108,20 @@ function _filename(dir) {
 
         else {
 
-          console.log("Event already has a uniquelocationid:", event.custom.uniquelocationid);
-
           // Matching location using the uniquelocationid
           const matchingLocationUniquelocationid = _.first(locations.filter(location =>
             location.uniquelocationid == event.custom.uniquelocationid
           ));
 
           if (matchingLocationUniquelocationid) {
-            console.log("Found a match in the local index with the same uniquelocationid");
+            console.log(
+              '2.1: %s: %s, %s',
+              'Event already has a uniquelocationid',
+              event.custom.uniquelocationid,
+              'Found a match in the local index with the same uniquelocationid'
+            );
             if (!locationIsLinkedToEvent(matchingLocationUniquelocationid, event.uid, agenda.uid)) {
-              console.log("Adding the event to the linkedEvents");
+              console.log('Adding the event to the linkedEvents');
               matchingLocationUniquelocationid.linkedEvents.push({
                 eventUid: event.uid,
                 agendaUid: agenda.uid,
@@ -123,12 +133,17 @@ function _filename(dir) {
           }
 
           if (matchingLocationLevensteinGeo) {
-            console.log("Found a match in the local index using the levenstein+geo method");
+            console.log(
+              '2.2: %s: %s, %s',
+              'Event already has a uniquelocationid',
+              event.custom.uniquelocationid,
+              'Found a match in the local index using the levenstein+geo method'
+            );
             if (!locationIsLinkedToEvent(matchingLocationLevensteinGeo, event.uid, agenda.uid)) {
               console.log("Updating the uniquelocationid of the matched location to:", event.custom.uniquelocationid)
               console.log("Adding the event to the linkedEvents");
               matchingLocationLevensteinGeo.uniquelocationid = event.custom.uniquelocationid;
-              matchingLocationUniquelocationid.linkedEvents.push({
+              matchingLocationLevensteinGeo.linkedEvents.push({
                 eventUid: event.uid,
                 agendaUid: agenda.uid,
                 hasUniquelocationid: true,
@@ -139,9 +154,12 @@ function _filename(dir) {
           }
 
           if (!matchingLocationLevensteinGeo && !matchingLocationUniquelocationid) {
-            console.log("No match in the local index with the same uniquelocationid, and no match using the levenstein+geo method");
-            console.log("Creating a new entry in the local index for the location");
-            console.log("Adding the event to the linkedEvents, and mark it as hasuniquelocation:true");
+            console.log(
+              '2.3: %s, %s, %s',
+              'No match in the local index with the same uniquelocationid, and no match using the levenstein+geo method',
+              'Creating a new entry in the local index for the location',
+              'Adding the event to the linkedEvents, and mark it as hasuniquelocation:true'
+            );
             locations.push({
               uniquelocationid: event.custom.uniquelocationid,
               name: event.location.name,
@@ -162,7 +180,7 @@ function _filename(dir) {
     console.log("\n");
     console.log("Phase 2: Iterate over the local index and generate unique ids");
     for (const location of locations.filter(location => location.uniquelocationid == null)) {
-      const newid = await generateUniquelocationid(locations);
+      const newid = await generateUniqueLocationId(locations);
       console.log('Generated uniquelocationid:', newid)
       location.uniquelocationid = newid;
     }

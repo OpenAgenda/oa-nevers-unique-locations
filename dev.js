@@ -10,10 +10,7 @@ process.env.APP_CONFIG = JSON.stringify({
   oa: {
     secret: config.secretKey
   },
-  localIndex: {
-    filename: "locations.db",
-    prefix: "nevers-"
-  },
+  idPrefix: "nevers-",
   targetAgendas: [
     { "slug": "agenda-de-test-lieux-uniques", "uid": 5316770, "title": "Agenda de test lieux uniques" }
   ]
