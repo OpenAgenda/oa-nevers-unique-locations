@@ -2,13 +2,32 @@
 # yarn lockfile v1
 
 
-"@types/lodash@^4.14.132":
-  version "4.14.149"
-  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.149.tgz#1342d63d948c6062838fbf961012f74d4e638440"
+"@fast-csv/format@4.3.5":
+  version "4.3.5"
+  resolved "https://registry.yarnpkg.com/@fast-csv/format/-/format-4.3.5.tgz#90d83d1b47b6aaf67be70d6118f84f3e12ee1ff3"
+  dependencies:
+    "@types/node" "^14.0.1"
+    lodash.escaperegexp "^4.1.2"
+    lodash.isboolean "^3.0.3"
+    lodash.isequal "^4.5.0"
+    lodash.isfunction "^3.0.9"
+    lodash.isnil "^4.0.0"
 
-"@types/node@^12.0.2":
-  version "12.12.14"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.12.14.tgz#1c1d6e3c75dba466e0326948d56e8bd72a1903d2"
+"@fast-csv/parse@4.3.6":
+  version "4.3.6"
+  resolved "https://registry.yarnpkg.com/@fast-csv/parse/-/parse-4.3.6.tgz#ee47d0640ca0291034c7aa94039a744cfb019264"
+  dependencies:
+    "@types/node" "^14.0.1"
+    lodash.escaperegexp "^4.1.2"
+    lodash.groupby "^4.6.0"
+    lodash.isfunction "^3.0.9"
+    lodash.isnil "^4.0.0"
+    lodash.isundefined "^3.0.1"
+    lodash.uniq "^4.5.0"
+
+"@types/node@^14.0.1":
+  version "14.14.33"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-14.14.33.tgz#9e4f8c64345522e4e8ce77b334a8aaa64e2b6c78"
 
 ansi-colors@3.2.3:
   version "3.2.3"
@@ -166,13 +185,12 @@ esprima@^4.0.0:
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/esprima/-/esprima-4.0.1.tgz#13b04cdb3e6c5d19df91ab6987a8695619b0aa71"
 
-fast-csv@^3.4.0:
-  version "3.4.0"
-  resolved "https://registry.yarnpkg.com/fast-csv/-/fast-csv-3.4.0.tgz#a284a907df57f06d44ac99fe23523345c2252528"
+fast-csv@^4.3.6:
+  version "4.3.6"
+  resolved "https://registry.yarnpkg.com/fast-csv/-/fast-csv-4.3.6.tgz#70349bdd8fe4d66b1130d8c91820b64a21bc4a63"
   dependencies:
-    "@types/lodash" "^4.14.132"
-    "@types/node" "^12.0.2"
-    lodash "^4.17.13"
+    "@fast-csv/format" "4.3.5"
+    "@fast-csv/parse" "4.3.6"
 
 fast-levenshtein@^2.0.6:
   version "2.0.6"
@@ -312,7 +330,39 @@ locate-path@^3.0.0:
     p-locate "^3.0.0"
     path-exists "^3.0.0"
 
-lodash@^4.17.13, lodash@^4.17.15, lodash@^4.17.19:
+lodash.escaperegexp@^4.1.2:
+  version "4.1.2"
+  resolved "https://registry.yarnpkg.com/lodash.escaperegexp/-/lodash.escaperegexp-4.1.2.tgz#64762c48618082518ac3df4ccf5d5886dae20347"
+
+lodash.groupby@^4.6.0:
+  version "4.6.0"
+  resolved "https://registry.yarnpkg.com/lodash.groupby/-/lodash.groupby-4.6.0.tgz#0b08a1dcf68397c397855c3239783832df7403d1"
+
+lodash.isboolean@^3.0.3:
+  version "3.0.3"
+  resolved "https://registry.yarnpkg.com/lodash.isboolean/-/lodash.isboolean-3.0.3.tgz#6c2e171db2a257cd96802fd43b01b20d5f5870f6"
+
+lodash.isequal@^4.5.0:
+  version "4.5.0"
+  resolved "https://registry.yarnpkg.com/lodash.isequal/-/lodash.isequal-4.5.0.tgz#415c4478f2bcc30120c22ce10ed3226f7d3e18e0"
+
+lodash.isfunction@^3.0.9:
+  version "3.0.9"
+  resolved "https://registry.yarnpkg.com/lodash.isfunction/-/lodash.isfunction-3.0.9.tgz#06de25df4db327ac931981d1bdb067e5af68d051"
+
+lodash.isnil@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/lodash.isnil/-/lodash.isnil-4.0.0.tgz#49e28cd559013458c814c5479d3c663a21bfaa6c"
+
+lodash.isundefined@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/lodash.isundefined/-/lodash.isundefined-3.0.1.tgz#23ef3d9535565203a66cefd5b830f848911afb48"
+
+lodash.uniq@^4.5.0:
+  version "4.5.0"
+  resolved "https://registry.yarnpkg.com/lodash.uniq/-/lodash.uniq-4.5.0.tgz#d0225373aeb652adc1bc82e4945339a842754773"
+
+lodash@^4.17.15, lodash@^4.17.19:
   version "4.17.19"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.19.tgz#e48ddedbe30b3321783c5b4301fbd353bc1e4a4b"
 
